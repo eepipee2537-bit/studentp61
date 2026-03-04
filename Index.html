@@ -1,45 +1,389 @@
 <!DOCTYPE html>
-<html>
+<html lang="th">
 <head>
   <base target="_top">
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>ระบบตรวจสอบการมาเรียน</title>
   <style>
-    body { background-color: #f8f9fa; }
-    .student-row { 
-      padding: 12px 0; 
-      border-bottom: 1px solid #e9ecef; 
-      background-color: #ffffff;
+    :root {
+      /* โทนสีพื้นหลังเข้มแบบในภาพ */
+      --bg-dark: #0d1117; 
+      --bg-dark-gradient: linear-gradient(180deg, #0d1117 0%, #020e5c 100%);
+      
+      /* สีตัวหนังสือ High Contrast สำหรับพื้นหลังเข้ม */
+      --text-main: #FFFFFF; 
+      --text-secondary: rgba(255, 255, 255, 0.7);
+      
+      --primary: #007AFF;
+      --primary-gradient: linear-gradient(135deg, #007AFF 0%, #0071E3 100%);
+      
+      /* สีน้ำเงินเข้ม/ม่วงสำหรับเงาเรืองแสง */
+      --glow-color: rgba(137, 120, 230, 0.6); /* Purple-ish glow like image */
+      
+      /* สีน้ำเงินเข้มไล่โทนสำหรับ Header และ ปุ่มบันทึก */
+      --header-gradient: linear-gradient(135deg, #0f063d 0%, #0f063d 100%);
+      
+      /* สีปุ่มสถานะ */
+      --success-color: #34C759; /* เขียวมาเรียน */
+      --danger-color: #FF3B30;  /* แดงลา */
+      --info-color: #007AFF;    /* น้ำเงินย้าย */
+      
+      /* สีขอบสำหรับ Dark Mode */
+      --separator: rgba(255, 255, 255, 0.1); 
     }
-    .student-name { font-size: 1.1rem; }
-    /* ปรับขนาดตัวหนังสือในปุ่มให้พอดีเมื่อมี 3 ปุ่ม */
-    .btn-group .btn { padding: 8px 4px; font-size: 0.9rem; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background: var(--bg-dark-gradient);
+      background-attachment: fixed;
+      min-height: 100vh;
+      color: var(--text-main);
+      margin: 0;
+      padding: 0;
+      -webkit-font-smoothing: antialiased;
+      overflow-x: hidden; 
+    }
+
+    /* สร้างเงาเรืองแสงตรงกลาง (Glow Shadow) */
+    body::after {
+      content: "";
+      position: fixed;
+      top: 40%; 
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 80vw;
+      height: 80vw;
+      max-width: 1800px;
+      max-height: 1800px;
+      background-image: radial-gradient(circle, var(--glow-color) 0%, rgba(13, 17, 23, 0) 70%);
+      filter: blur(80px); 
+      z-index: -1; 
+      opacity: 0.8;
+      pointer-events: none; 
+    }
+
+    .app-container {
+      max-width: 600px;
+      margin: 0 auto;
+      padding-bottom: 120px;
+    }
+
+    /* header สีน้ำเงินเข้มไล่โทน */
+    .header {
+      background: var(--header-gradient);
+      padding: 50px 24px 30px;
+      border-radius: 0 0 28px 28px;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+      margin-bottom: 24px;
+      color: #FFFFFF; 
+    }
+
+    .header h1 {
+      font-size: 32px;
+      font-weight: 800;
+      margin: 0;
+      letter-spacing: -0.5px;
+      color: #FFFFFF;
+    }
+
+    .header p {
+      margin: 8px 0 0;
+      font-size: 16px;
+      color: rgba(255, 255, 255, 0.8); 
+      font-weight: 500;
+    }
+
+    .clock {
+      font-variant-numeric: tabular-nums;
+      font-size: 14px !important;
+      margin-top: 4px !important;
+      color: rgba(255, 255, 255, 0.6) !important;
+    }
+
+    /* กล่องรายชื่อนักเรียน โปร่งแสงแบบ "กระจกเงา" พร้อมขอบเรืองแสง */
+    .student-list {
+      background: rgba(255, 255, 255, 0.05); 
+      backdrop-filter: blur(10px); 
+      -webkit-backdrop-filter: blur(10px);
+      border-radius: 16px;
+      margin: 0 20px;
+      overflow: hidden;
+      
+      /* ปรับสีเส้นขอบให้เป็นสีม่วงอ่อนเพื่อรับกับแสง */
+      border: 1px solid rgba(137, 120, 230, 0.3); 
+      
+      /* เพิ่มเงา 2 ชั้น: ชั้นแรกคือแสงเรืองแสงสีม่วงรอบกล่อง ชั้นที่สองคือเงาดำปกติ */
+      box-shadow: 0 0 25px rgba(137, 120, 230, 0.4), 
+                  0 10px 40px rgba(0, 0, 0, 0.4); 
+    }
+
+    .student-item {
+      display: flex;
+      flex-direction: row;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--separator);
+      transition: background-color 0.2s ease;
+    }
+
+    .student-item:hover {
+      background-color: rgba(255, 255, 255, 0.05); 
+    }
+
+    .student-item:last-child {
+      border-bottom: none;
+    }
+
+    .student-name {
+      font-size: 16px;
+      font-weight: 600;
+      color: var(--text-main); 
+      flex: 1; 
+      padding-right: 16px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis; 
+    }
+
+    /* Segmented Control ปรับสีให้เข้ากับ Dark Mode */
+    .segmented-control {
+      display: flex;
+      flex: 0 0 190px; 
+      background-color: rgba(255, 255, 255, 0.05); 
+      border-radius: 8px;
+      padding: 3px;
+    }
+
+    .segmented-control input[type="radio"] {
+      display: none;
+    }
+
+    .segmented-control label {
+      flex: 1;
+      text-align: center;
+      padding: 6px 0;
+      font-size: 13px;
+      font-weight: 600;
+      border-radius: 6px;
+      color: var(--text-secondary);
+      transition: all 0.25s cubic-bezier(0.2, 0, 0, 1);
+      cursor: pointer;
+      user-select: none;
+    }
+
+    /* สีเมื่อถูกเลือก ปรับให้ตัวหนังสือสีขาวและเงาเรืองแสงชัดเจน */
+    .segmented-control input[value="/"]:checked + label {
+      background-color: var(--success-color);
+      color: #FFFFFF;
+      box-shadow: 0 2px 6px rgba(52, 199, 89, 0.3);
+    }
+
+    .segmented-control input[value="ล"]:checked + label {
+      background-color: var(--danger-color);
+      color: #FFFFFF;
+      box-shadow: 0 2px 6px rgba(255, 59, 48, 0.3);
+    }
+
+    .segmented-control input[value=""]:checked + label {
+      background-color: var(--info-color);
+      color: #FFFFFF;
+      box-shadow: 0 2px 6px rgba(0, 122, 255, 0.3);
+    }
+
+    /* แถบบันทึกด้านล่าง ปรับให้เป็นแบบ Dark Mode เข้ากัน */
+    .bottom-bar {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: rgba(13, 17, 23, 0.8); 
+      backdrop-filter: blur(15px);
+      -webkit-backdrop-filter: blur(15px);
+      padding: 16px 20px 32px;
+      border-top: 1px solid var(--separator);
+      display: flex;
+      justify-content: center;
+      z-index: 10;
+    }
+
+    .btn-save {
+      background: var(--header-gradient);
+      color: white;
+      border: none;
+      border-radius: 14px;
+      padding: 16px 24px;
+      font-size: 17px;
+      font-weight: 600;
+      width: 100%;
+      max-width: 560px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 8px;
+      box-shadow: 0 4px 15px rgba(10, 42, 85, 0.4);
+    }
+
+    .btn-save:active {
+      transform: scale(0.97);
+      box-shadow: 0 2px 8px rgba(10, 42, 85, 0.3);
+    }
+
+    .btn-save:disabled {
+      background: rgba(10, 42, 85, 0.3);
+      color: rgba(255, 255, 255, 0.4);
+      box-shadow: none;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .loader-container {
+      text-align: center;
+      padding: 60px 20px;
+      color: var(--text-secondary);
+      font-weight: 500;
+    }
+
+    .spinner {
+      width: 32px;
+      height: 32px;
+      border: 3px solid rgba(255, 255, 255, 0.1); 
+      border-radius: 50%;
+      border-top-color: #FFFFFF;
+      animation: spin 1s ease-in-out infinite;
+      margin: 0 auto 16px;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    /* Modal Popup แบบ Apple Ecosystem - Dark Mode */
+    .modal-overlay {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0, 0, 0, 0.6);
+      backdrop-filter: blur(5px);
+      -webkit-backdrop-filter: blur(5px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 2000;
+      opacity: 0;
+      visibility: hidden;
+      transition: all 0.3s ease;
+    }
+
+    .modal-overlay.show {
+      opacity: 1;
+      visibility: visible;
+    }
+
+    .modal-content {
+      background: rgba(255, 255, 255, 0.05); 
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      width: 80%;
+      max-width: 320px;
+      border-radius: 20px;
+      padding: 30px 20px 20px;
+      text-align: center;
+      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4);
+      transform: scale(0.9);
+      transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    }
+
+    .modal-overlay.show .modal-content {
+      transform: scale(1);
+    }
+
+    .modal-icon {
+      width: 60px;
+      height: 60px;
+      background: rgba(52, 199, 89, 0.1); 
+      color: #34C759;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 16px;
+    }
+
+    .modal-title {
+      font-size: 20px;
+      font-weight: 700;
+      margin: 0 0 8px;
+      color: #FFFFFF; 
+    }
+
+    .modal-text {
+      font-size: 15px;
+      color: var(--text-secondary); 
+      margin: 0 0 24px;
+      line-height: 1.4;
+    }
+
+    .modal-btn {
+      background: var(--header-gradient);
+      color: #FFFFFF;
+      border: none;
+      width: 100%;
+      padding: 14px;
+      border-radius: 12px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: opacity 0.2s;
+    }
+
+    .modal-btn:active {
+      opacity: 0.8;
+    }
   </style>
 </head>
-<body class="container py-4">
-  <div class="card shadow-sm">
-    <div class="card-body">
-      <h3 class="text-center text-primary mb-2">ระบบเช็คชื่อนักเรียน</h3>
-      <div class="text-center mb-4 text-muted fw-bold" id="currentDateTime"></div>
+<body>
 
-      <div id="loading" class="text-center py-4">
-        <div class="spinner-border text-primary" role="status"></div>
-        <div class="mt-2">กำลังโหลดรายชื่อ...</div>
+  <div class="modal-overlay" id="successModal">
+    <div class="modal-content">
+      <div class="modal-icon">
+        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
       </div>
-
-      <form id="attendanceForm" style="display:none;">
-        <div id="studentList" class="mb-4"></div>
-        
-        <div class="text-center mt-4 position-sticky bottom-0 bg-white py-3" style="border-top: 2px dashed #eee;">
-          <button type="button" class="btn btn-primary btn-lg w-100 rounded-pill shadow" onclick="submitData()" id="submitBtn">
-            💾 บันทึกข้อมูล
-          </button>
-        </div>
-      </form>
+      <h3 class="modal-title">บันทึกสำเร็จ</h3>
+      <p class="modal-text">ข้อมูลการเช็คชื่อของนักเรียนถูกบันทึกลงระบบเรียบร้อยแล้ว</p>
+      <button class="modal-btn" onclick="closeModal()">ตกลง</button>
     </div>
   </div>
 
+  <div class="app-container">
+    <div class="header">
+      <h1>ระบบตรวจสอบการมาเรียน</h1>
+      <p>นักเรียนชั้นประถมศึกษาปีที่ 6/1</p>
+      <p id="currentDateTime" class="clock">กำลังโหลดเวลา...</p>
+    </div>
+
+    <div id="loading" class="loader-container">
+      <div class="spinner"></div>
+      <div>กำลังโหลดรายชื่อนักเรียน...</div>
+    </div>
+    
+    <div id="attendanceForm" style="display:none;">
+      <div class="student-list" id="studentList">
+      </div>
+    </div>
+  </div>
+
+  <div class="bottom-bar">
+    <button class="btn-save" id="submitBtn" onclick="submitData()" style="display: none;">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg>
+      บันทึกข้อมูล
+    </button>
+  </div>
+
   <script>
-    // ฟังก์ชันแสดงวันและเวลาปัจจุบัน
     function updateTime() {
       const now = new Date();
       const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute:'2-digit', second:'2-digit' };
@@ -48,57 +392,89 @@
     setInterval(updateTime, 1000);
     updateTime();
 
-    // โหลดรายชื่อจาก Google Sheets
-    google.script.run.withSuccessHandler(function(names) {
+    document.addEventListener('DOMContentLoaded', () => {
+      google.script.run
+        .withSuccessHandler(renderList)
+        .withFailureHandler(showError)
+        .getStudentNames();
+    });
+
+    function renderList(names) {
       document.getElementById('loading').style.display = 'none';
       const form = document.getElementById('attendanceForm');
       const list = document.getElementById('studentList');
+      const btn = document.getElementById('submitBtn');
+      
+      if (!names || names.length === 0) {
+        list.innerHTML = '<div style="padding: 40px 20px; text-align: center; color: var(--text-secondary);">ไม่พบรายชื่อนักเรียน</div>';
+        form.style.display = 'block';
+        return;
+      }
+
       form.style.display = 'block';
-
+      btn.style.display = 'flex';
+      let html = '';
+      
       names.forEach((name, index) => {
-        list.innerHTML += `
-          <div class="row align-items-center student-row px-2">
-            <div class="col-12 col-md-5 student-name fw-semibold mb-2 mb-md-0">${name}</div>
-            <div class="col-12 col-md-7">
-              <div class="btn-group w-100" role="group">
-                <input type="radio" class="btn-check" name="status_${index}" id="present_${index}" value="/" checked>
-                <label class="btn btn-outline-success" for="present_${index}">มาเรียน</label>
+        html += `
+        <div class="student-item" data-name="${name}">
+          <div class="student-name">${name}</div>
+          <div class="segmented-control">
+            <input type="radio" id="present_${index}" name="status_${index}" value="/" checked>
+            <label for="present_${index}">มาเรียน</label>
 
-                <input type="radio" class="btn-check" name="status_${index}" id="leave_${index}" value="ล">
-                <label class="btn btn-outline-warning" for="leave_${index}">ลา</label>
+            <input type="radio" id="leave_${index}" name="status_${index}" value="ล">
+            <label for="leave_${index}">ลา</label>
 
-                <input type="radio" class="btn-check" name="status_${index}" id="moved_${index}" value="">
-                <label class="btn btn-outline-secondary" for="moved_${index}">ย้ายออก</label>
-              </div>
-              <input type="hidden" name="student_name" value="${name}">
-            </div>
+            <input type="radio" id="moved_${index}" name="status_${index}" value="">
+            <label for="moved_${index}">ย้าย</label>
           </div>
+        </div>
         `;
       });
-    }).getStudentNames();
+      list.innerHTML = html;
+    }
 
-    // ฟังก์ชันรวบรวมข้อมูลและส่งไปบันทึก
     function submitData() {
-      const names = document.querySelectorAll('input[name="student_name"]');
-      let data = [];
-
-      names.forEach((nameInput, index) => {
-        let status = document.querySelector(`input[name="status_${index}"]:checked`).value;
-        data.push({ name: nameInput.value, status: status });
-      });
-
-      // ปิดปุ่มกันกดซ้ำระหว่างบันทึก
       const btn = document.getElementById('submitBtn');
       btn.disabled = true;
-      btn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> กำลังบันทึก...';
+      btn.innerHTML = '<div class="spinner" style="width: 20px; height: 20px; border-width: 2px; border-top-color: white; margin: 0;"></div> กำลังบันทึก...';
 
-      // ส่งข้อมูลไปที่ไฟล์ Code.gs
-      google.script.run.withSuccessHandler(function(res) {
-        alert(res);
+      const items = document.querySelectorAll('.student-item');
+      let data = [];
+
+      items.forEach((item, index) => {
+        const name = item.getAttribute('data-name');
+        const status = document.querySelector(`input[name="status_${index}"]:checked`).value;
+        data.push({ name: name, status: status });
+      });
+
+      google.script.run
+        .withSuccessHandler(function(res) {
+          showModal();
+          btn.disabled = false;
+          btn.innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg> บันทึกข้อมูล';
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+        })
+        .withFailureHandler(showError)
+        .saveAttendance(data);
+    }
+
+    function showModal() {
+      document.getElementById('successModal').classList.add('show');
+    }
+
+    function closeModal() {
+      document.getElementById('successModal').classList.remove('show');
+    }
+
+    function showError(err) {
+      alert('เกิดข้อผิดพลาด: ' + err.message);
+      const btn = document.getElementById('submitBtn');
+      if (btn) {
         btn.disabled = false;
-        btn.innerHTML = '💾 บันทึกข้อมูล';
-        // เมื่อบันทึกเสร็จ อาจจะรีเฟรชหน้าเว็บหรือล้างค่าตามต้องการ
-      }).saveAttendance(data);
+        btn.innerHTML = 'ลองใหม่อีกครั้ง';
+      }
     }
   </script>
 </body>
