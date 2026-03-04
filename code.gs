@@ -11,7 +11,13 @@ function doGet() {
 function getStudentNames() {
   const ss = SpreadsheetApp.openById(SHEET_ID);
   const sheet = ss.getSheetByName('name');
-  // สมมติว่ารายชื่อเริ่มที่ A2 (A1 เป็นหัวข้อ) ถ้าไม่มีหัวข้อให้เปลี่ยนเป็น A1:A
+  
+  // ป้องกัน Error กรณีหาชื่อ Sheet ไม่เจอ
+  if (!sheet) {
+    throw new Error("หาแผ่นงานชื่อ 'name' ไม่เจอ กรุณาเช็คชื่อแท็บใน Google Sheets");
+  }
+
+  // สมมติว่ารายชื่อเริ่มที่ A2 (A1 เป็นหัวข้อ)
   const data = sheet.getRange('A2:A').getValues(); 
   return data.flat().filter(String); // ตัดแถวที่ว่างออก
 }
@@ -21,7 +27,11 @@ function saveAttendance(recordData) {
   const ss = SpreadsheetApp.openById(SHEET_ID);
   const sheet = ss.getSheetByName('check in');
   
-  // จัดรูปแบบวันที่ปัจจุบัน (เช่น 04/03/2026)
+  if (!sheet) {
+    throw new Error("หาแผ่นงานชื่อ 'check in' ไม่เจอ กรุณาเช็คชื่อแท็บใน Google Sheets");
+  }
+  
+  // จัดรูปแบบวันที่ปัจจุบัน
   const today = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), "dd/MM/yyyy");
   
   // อ่านข้อมูลหัวคอลัมน์แถวที่ 1 ทั้งหมดเพื่อหาวันที่
@@ -54,7 +64,7 @@ function saveAttendance(recordData) {
       nameList.push(item.name); // อัปเดตรายการชื่อในหน่วยความจำ
       numRows++;
     } else {
-      // ถ้ามีชื่ออยู่แล้ว ให้บันทึกสถานะในแถวของคนนั้น และคอลัมน์ของวันนี้ (บวก 2 เพราะ index เริ่มที่ 0 และข้อมูลเริ่มแถว 2)
+      // ถ้ามีชื่ออยู่แล้ว ให้บันทึกสถานะ
       sheet.getRange(rowIndex + 2, dateColIndex).setValue(item.status);
     }
   });
